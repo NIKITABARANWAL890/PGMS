@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Sampled from the wireframes: deep navy sidebar, blue primary action. */
+  --color-navy-900: #0b1f47;
+  --color-navy-800: #12295a;
+  --color-navy-700: #1b3a7a;
+  --color-brand-600: #1e56c8;
+  --color-brand-500: #2b6ae0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}

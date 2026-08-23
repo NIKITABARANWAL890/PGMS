@@ -1,0 +1,27 @@
+# Local PostgreSQL for development.
+#
+#   docker compose up -d      start
+#   docker compose down -v    wipe the database and start over
+#
+# The named volume is what makes `down -v` a genuine clean slate — without it,
+# a half-migrated database would survive a reset and hide the problem.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pgms-db
+    environment:
+      POSTGRES_USER: pgms
+      POSTGRES_PASSWORD: pgms
+      POSTGRES_DB: pgms
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pgms -d pgms']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgms_pgdata:

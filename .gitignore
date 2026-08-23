@@ -1,0 +1,28 @@
+# --- Python / backend --------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local dev database cluster created by backend/scripts/devdb.py
+backend/.devdb/
+backend/.devdb.log
+
+# --- Node / frontend ---------------------------------------------------
+node_modules/
+dist/
+*.local
+
+# --- Secrets -----------------------------------------------------------
+# .env.example is committed; real env files are not.
+.env
+.env.*
+!.env.example
+
+# --- Editor / OS -------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

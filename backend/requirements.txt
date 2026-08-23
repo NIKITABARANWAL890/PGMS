@@ -1,0 +1,31 @@
+# --- Web framework -----------------------------------------------------
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.20
+
+# --- Data / ORM --------------------------------------------------------
+sqlalchemy[asyncio]==2.0.52
+alembic==1.19.1
+asyncpg==0.31.0          # async driver, used by the app
+psycopg[binary]==3.3.4   # sync driver, used by Alembic and the dev scripts
+pydantic==2.13.4
+pydantic-settings==2.15.0
+email-validator==2.4.1
+
+# --- Auth --------------------------------------------------------------
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+# Pinned deliberately: passlib 1.7.4 probes bcrypt with a >72-byte password at
+# import time, which bcrypt 5.x rejects with a hard ValueError. 4.0.1 is the
+# last release passlib drives cleanly. Revisit when passlib ships a fix.
+bcrypt==4.0.1
+
+# --- Testing -----------------------------------------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1
+
+# --- Local development only --------------------------------------------
+# Ships real PostgreSQL binaries so `scripts/devdb.py` can run a local
+# database without Docker. Not needed in deployment.
+pgserver==0.1.4
