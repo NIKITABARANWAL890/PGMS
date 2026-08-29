@@ -30,10 +30,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        # Update after the frontend is deployed to Vercel — it needs the
-        # real https://your-app.vercel.app origin, not this placeholder, or
-        # the browser will block every request with a CORS error.
-        value: https://REPLACE-WITH-YOUR-VERCEL-URL.vercel.app
+        value: https://pgms-beta.vercel.app
       - key: PYTHON_VERSION
         value: 3.12.7
 
