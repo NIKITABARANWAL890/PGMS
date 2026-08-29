@@ -38,7 +38,14 @@ services:
         value: 3.12.7
 
 databases:
+  # Same region as pgms-api above, deliberately — Render's internal hostname
+  # (the one `fromDatabase` hands the API, looking like `dpg-xxxx-a` with no
+  # domain suffix) only resolves between services in the same region. Put
+  # this in a different region from the API and the connection fails with
+  # "failed to resolve host ... Name or service not known", which is exactly
+  # what an unmatched pair here produces.
   - name: pgms-db
     plan: free
+    region: singapore
     databaseName: pgms
     user: pgms
