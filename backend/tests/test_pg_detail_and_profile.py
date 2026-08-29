@@ -114,7 +114,12 @@ async def test_pg_floors_span_buildings_and_count_rooms(client: AsyncClient):
         if building_name == "Block A":
             await client.post(
                 f"/floors/{floor.json()['id']}/rooms",
-                json={"room_number": "101", "room_type": "double", "total_beds": 2},
+                json={
+                    "room_number": "101",
+                    "room_type": "double",
+                    "total_beds": 2,
+                    "monthly_rent": "8000.00",
+                },
                 headers=auth_headers(token),
             )
 

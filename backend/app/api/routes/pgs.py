@@ -16,11 +16,15 @@ from app.schemas.property import (
     BedOut,
     BuildingCreate,
     BuildingOut,
+    BuildingWithStructureOut,
+    FloorOverviewOut,
     FloorWithBuildingOut,
     PGCreate,
+    PGOut,
     PGRoomsOut,
     PGSummaryOut,
     PGUpdate,
+    RoomOut,
     RoomWithBedsOut,
 )
 
@@ -56,21 +60,28 @@ def _pg_with_counts_query() -> Select:
     )
 
 
+def _summary(pg: PG, total: int, occupied: int, vacant: int, maintenance: int) -> PGSummaryOut:
+    """Build the response from the ORM object rather than field by field.
+
+    PGOut carries eleven columns now; writing them out at each of the four call
+    sites is exactly how one endpoint quietly stops returning a new field.
+    """
+    return PGSummaryOut(
+        **PGOut.model_validate(pg).model_dump(),
+        total_beds=total,
+        occupied_beds=occupied,
+        vacant_beds=vacant,
+        maintenance_beds=maintenance,
+    )
+
+
 @router.post("", response_model=PGSummaryOut, status_code=status.HTTP_201_CREATED)
 async def create_pg(payload: PGCreate, owner: RequireOwner, db: DbSession) -> PGSummaryOut:
-    pg = PG(owner_id=owner.id, name=payload.name, address=payload.address)
+    pg = PG(owner_id=owner.id, **payload.model_dump())
     db.add(pg)
     await db.commit()
     await db.refresh(pg)
-    return PGSummaryOut(
-        id=pg.id,
-        name=pg.name,
-        address=pg.address,
-        total_beds=0,
-        occupied_beds=0,
-        vacant_beds=0,
-        maintenance_beds=0,
-    )
+    return _summary(pg, 0, 0, 0, 0)
 
 
 @router.get("", response_model=list[PGSummaryOut])
@@ -81,43 +92,21 @@ async def list_pgs(owner: RequireOwner, db: DbSession) -> list[PGSummaryOut]:
     owner hitting this endpoint sees their own PGs or nothing, never these.
     """
     rows = (await db.execute(_pg_with_counts_query().where(PG.owner_id == owner.id))).all()
-    return [
-        PGSummaryOut(
-            id=pg.id,
-            name=pg.name,
-            address=pg.address,
-            total_beds=total,
-            occupied_beds=occupied,
-            vacant_beds=vacant,
-            maintenance_beds=maintenance,
-        )
-        for pg, total, occupied, vacant, maintenance in rows
-    ]
+    return [_summary(*row) for row in rows]
 
 
 @router.patch("/{pg_id}", response_model=PGSummaryOut)
 async def update_pg(
     payload: PGUpdate, pg: AccessiblePG, owner: RequireOwner, db: DbSession
 ) -> PGSummaryOut:
-    if payload.name is not None:
-        pg.name = payload.name
-    if payload.address is not None:
-        pg.address = payload.address
+    # exclude_unset so "not sent" and "explicitly cleared to null" stay
+    # distinguishable -- the Details tab edits a subset of fields at a time.
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(pg, field, value)
     await db.commit()
 
-    row = (
-        await db.execute(_pg_with_counts_query().where(PG.id == pg.id))
-    ).one()
-    updated, total, occupied, vacant, maintenance = row
-    return PGSummaryOut(
-        id=updated.id,
-        name=updated.name,
-        address=updated.address,
-        total_beds=total,
-        occupied_beds=occupied,
-        vacant_beds=vacant,
-        maintenance_beds=maintenance,
-    )
+    row = (await db.execute(_pg_with_counts_query().where(PG.id == pg.id))).one()
+    return _summary(*row)
 
 
 @router.get("/{pg_id}", response_model=PGSummaryOut)
@@ -128,16 +117,96 @@ async def get_pg(pg: AccessiblePG, user: CurrentUser, db: DbSession) -> PGSummar
     and the row it was opened from can never disagree.
     """
     row = (await db.execute(_pg_with_counts_query().where(PG.id == pg.id))).one()
-    found, total, occupied, vacant, maintenance = row
-    return PGSummaryOut(
-        id=found.id,
-        name=found.name,
-        address=found.address,
-        total_beds=total,
-        occupied_beds=occupied,
-        vacant_beds=vacant,
-        maintenance_beds=maintenance,
-    )
+    return _summary(*row)
+
+
+@router.get("/{pg_id}/structure", response_model=list[BuildingWithStructureOut])
+async def list_pg_structure(
+    pg: AccessiblePG, user: CurrentUser, db: DbSession
+) -> list[BuildingWithStructureOut]:
+    """Buildings & Floors tab (guide 7): every building with its roll-up.
+
+    Counts are computed in one grouped query rather than per building, so the
+    tab costs a single round trip no matter how many buildings a PG has.
+    """
+    rows = (
+        await db.execute(
+            select(
+                Building,
+                func.count(func.distinct(Floor.id)).label("floor_count"),
+                func.count(func.distinct(Room.id)).label("room_count"),
+                func.count(Bed.id).label("bed_count"),
+                func.count(Bed.id)
+                .filter(Bed.status == BedStatus.OCCUPIED)
+                .label("occupied_beds"),
+            )
+            .outerjoin(Floor, Floor.building_id == Building.id)
+            .outerjoin(Room, Room.floor_id == Floor.id)
+            .outerjoin(Bed, Bed.room_id == Room.id)
+            .where(Building.pg_id == pg.id)
+            .group_by(Building.id)
+            .order_by(Building.created_at)
+        )
+    ).all()
+
+    return [
+        BuildingWithStructureOut(
+            id=b.id,
+            pg_id=b.pg_id,
+            name=b.name,
+            building_code=b.building_code,
+            floor_count=floors,
+            room_count=rooms,
+            bed_count=beds,
+            occupied_beds=occupied,
+        )
+        for b, floors, rooms, beds, occupied in rows
+    ]
+
+
+@router.get("/{pg_id}/floor-overview", response_model=list[FloorOverviewOut])
+async def floor_overview(
+    pg: AccessiblePG, user: CurrentUser, db: DbSession
+) -> list[FloorOverviewOut]:
+    """Guide 3.4: Floors Overview -- which floors are configured, which are not.
+
+    A floor with zero rooms is "Not Configured" in the UI; that is read from
+    room_count here rather than stored as a status, so it can never disagree
+    with what is actually on the floor.
+    """
+    rows = (
+        await db.execute(
+            select(
+                FloorModel,
+                func.count(func.distinct(Room.id)).label("room_count"),
+                func.count(Bed.id).label("bed_count"),
+                func.count(Bed.id)
+                .filter(Bed.status == BedStatus.OCCUPIED)
+                .label("occupied_beds"),
+                func.coalesce(func.sum(Bed.monthly_rent), 0).label("rent_total"),
+            )
+            .join(Building, FloorModel.building_id == Building.id)
+            .outerjoin(Room, Room.floor_id == FloorModel.id)
+            .outerjoin(Bed, Bed.room_id == Room.id)
+            .where(Building.pg_id == pg.id)
+            .group_by(FloorModel.id)
+            .order_by(FloorModel.floor_order, FloorModel.floor_label)
+        )
+    ).all()
+
+    return [
+        FloorOverviewOut(
+            id=f.id,
+            building_id=f.building_id,
+            floor_label=f.floor_label,
+            floor_order=f.floor_order,
+            room_count=rooms,
+            bed_count=beds,
+            occupied_beds=occupied,
+            monthly_rent_total=rent_total,
+        )
+        for f, rooms, beds, occupied, rent_total in rows
+    ]
 
 
 @router.get("/{pg_id}/floors", response_model=list[FloorWithBuildingOut])
@@ -185,7 +254,9 @@ async def list_pg_floors(
 async def create_building(
     payload: BuildingCreate, pg: AccessiblePG, owner: RequireOwner, db: DbSession
 ) -> Building:
-    building = Building(pg_id=pg.id, name=payload.name)
+    building = Building(
+        pg_id=pg.id, name=payload.name, building_code=payload.building_code
+    )
     db.add(building)
     await db.commit()
     await db.refresh(building)
@@ -236,11 +307,7 @@ async def list_pg_rooms(pg: AccessiblePG, user: CurrentUser, db: DbSession) -> P
 
         room_rows.append(
             RoomWithBedsOut(
-                id=room.id,
-                floor_id=room.floor_id,
-                room_number=room.room_number,
-                room_type=room.room_type,
-                total_beds=room.total_beds,
+                **RoomOut.model_validate(room).model_dump(),
                 floor_label=room.floor.floor_label,
                 building_name=room.floor.building.name,
                 beds=[BedOut.model_validate(b) for b in room.beds],
@@ -259,3 +326,30 @@ async def list_pg_rooms(pg: AccessiblePG, user: CurrentUser, db: DbSession) -> P
         maintenance_beds=totals["maintenance"],
         rooms=room_rows,
     )
+
+
+@router.delete("/{pg_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pg(pg: AccessiblePG, owner: RequireOwner, db: DbSession) -> None:
+    """Remove a PG and its whole structure.
+
+    Buildings, floors, rooms, beds and staff assignments cascade away with it.
+    The staff *accounts* do not: a staff member may work at several PGs, and
+    deleting one property should never delete a person's login. They simply
+    lose this assignment.
+    """
+    occupied = await db.scalar(
+        select(func.count(Bed.id))
+        .join(Room, Bed.room_id == Room.id)
+        .join(Floor, Room.floor_id == Floor.id)
+        .join(Building, Floor.building_id == Building.id)
+        .where(Building.pg_id == pg.id, Bed.status == BedStatus.OCCUPIED)
+    )
+    if occupied:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{pg.name} still has {occupied} occupied bed(s). Move those tenants out "
+            "before deleting the property.",
+        )
+
+    await db.delete(pg)
+    await db.commit()

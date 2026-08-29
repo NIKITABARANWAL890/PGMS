@@ -1,12 +1,15 @@
 import { yupResolver } from '@hookform/resolvers/yup'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
 
 import { Badge, Button, Card, CardTitle, ErrorNote, Field, TextInput } from '@/components/ui'
-import { PageHeader } from '@/components/ui/AppShell'
+import { Avatar, PageHeader } from '@/components/ui/AppShell'
+import { IconCamera } from '@/components/ui/icons'
+import { useAvatar } from '@/hooks/useAvatar'
 import { useAppSelector } from '@/hooks/redux'
 import { apiErrorMessage } from '@/utils/format'
+import { clearAvatar, readImageFile, setAvatar } from '@/utils/avatar'
 
 import { useChangePasswordMutation, useUpdateProfileMutation } from './authApi'
 
@@ -47,6 +50,7 @@ export default function ProfilePage() {
       <PageHeader
         title="My profile"
         description="Your account details and password."
+        breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Profile' }]}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -103,17 +107,21 @@ function ProfileDetailsCard() {
     <Card>
       <CardTitle>Account details</CardTitle>
 
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <span className="text-slate-500">Role</span>
-        <Badge tone={user?.role === 'owner' ? 'blue' : 'green'}>
-          {user?.staff_title ?? user?.role}
-        </Badge>
-        {user?.role === 'staff' ? (
-          <span className="text-xs text-slate-500">
-            (a label — access comes from your assigned PGs)
-          </span>
-        ) : null}
+      <div className="mb-5 flex items-center gap-4">
+        <PhotoUpload userId={user?.id} fullName={user?.full_name} />
+
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-slate-500">Role</span>
+          <Badge tone={user?.role === 'owner' ? 'blue' : 'green'}>
+            {user?.staff_title ?? user?.role}
+          </Badge>
+        </div>
       </div>
+      {user?.role === 'staff' ? (
+        <p className="-mt-3 mb-4 text-xs text-slate-500">
+          A label — access comes from your assigned PGs.
+        </p>
+      ) : null}
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {error ? (
@@ -142,6 +150,76 @@ function ProfileDetailsCard() {
         </Button>
       </form>
     </Card>
+  )
+}
+
+/**
+ * The profile photo control, to the left of the role badge.
+ *
+ * Stored client-side only (see `utils/avatar.ts`) — there is no `avatar_url`
+ * column in the schema for any phase, and adding real file storage is a
+ * backend decision this task did not ask for. This gives the upload a working
+ * home in the UI, on this device, without inventing that infrastructure.
+ */
+function PhotoUpload({ userId, fullName }: { userId?: string; fullName?: string }) {
+  const avatarUrl = useAvatar(userId)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const initials = (fullName ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+
+  const onPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !userId) return
+    setUploadError(null)
+    try {
+      const dataUrl = await readImageFile(file)
+      setAvatar(userId, dataUrl)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Could not use that photo.')
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="group relative">
+        <Avatar avatarUrl={avatarUrl} initials={initials} size="lg" />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          aria-label="Upload profile photo"
+          title="Upload profile photo"
+          className="absolute -right-1 -bottom-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm transition-colors hover:bg-brand-500"
+        >
+          <IconCamera className="h-3.5 w-3.5" />
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          onChange={onPick}
+          className="sr-only"
+        />
+      </div>
+      {avatarUrl ? (
+        <button
+          type="button"
+          onClick={() => userId && clearAvatar(userId)}
+          className="text-[11px] text-slate-400 transition-colors hover:text-red-600"
+        >
+          Remove
+        </button>
+      ) : (
+        <span className="text-[11px] text-slate-400">Upload photo</span>
+      )}
+      {uploadError ? <p className="max-w-28 text-center text-[11px] text-red-600">{uploadError}</p> : null}
+    </div>
   )
 }
 

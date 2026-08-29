@@ -125,8 +125,12 @@ running on it — check with
 ### 5. First run
 
 1. Open <http://localhost:5173> → **Create an owner account**.
-2. **Properties** → add a PG (add a second one to see PG switching).
-3. **Rooms & Beds** → add a building, then a floor, then rooms, then beds.
+2. **Properties → + Add PG** runs the guided setup:
+   PG details → building → floor count → floors overview → rooms → beds.
+   Every step saves as you go, so a half-finished PG is a valid state you can
+   leave and come back to.
+3. Opening a PG from Properties enters its **workspace**, with its own
+   sub-navigation: Dashboard, Details, Buildings & Floors, Rooms, Beds, Staff.
 4. **Staff** → add a staff member and assign them to one PG. Copy the temporary
    password shown — it is displayed once and never again.
 5. Sign out, sign back in as that staff member, and confirm they see only the
@@ -215,6 +219,44 @@ hide a broken permission check instead of surfacing it.
 same capability set; only *which PGs* they can reach varies. There is no
 `staff_permissions` table and no permission-picker UI — see `Phase_1/schema_notes.md`
 for the reasoning before changing this.
+
+---
+
+## Property setup and the PG workspace
+
+PG creation follows the Owner UI guide: identity first, then structure.
+
+```text
+PG details -> building(s) -> floor count -> floors overview
+                                              |
+                              +---------------+---------------+
+                              |                               |
+                        configure a floor              finish setup
+                        (rooms -> beds)                       |
+                              |                               v
+                              +-----> back to overview   PG workspace
+```
+
+Two details worth knowing before changing this:
+
+- **Floors are generated from a count**, not added one at a time — `POST
+  /buildings/{id}/floors/generate` creates Floor 1..N. Raising the count later
+  is *additive*: it adds the missing floors and leaves configured ones alone,
+  because replacing them would delete rooms and beds already set up.
+- **A floor is "Not Configured" when it has no rooms**, computed at read time
+  rather than stored. A stored flag would need updating on every room add and
+  delete, and would be wrong the first time one of those paths forgot.
+
+Rooms carry the rent; beds inherit it unless a bed sets its own. Creating a room
+seeds `Bed A..N` up to its declared capacity, and capacity is enforced on both
+sides — a room cannot gain beds past it, nor shrink below the beds it already
+has.
+
+The workspace sub-navigation follows the guide's nine tabs. Five are built
+(Dashboard, Details, Buildings & Floors, Rooms, Beds) plus Staff; Tenants,
+Documents and Activity are shown as disabled with the phase that brings them,
+rather than hidden — the shell should match the intended product without
+pretending the screens exist.
 
 ---
 

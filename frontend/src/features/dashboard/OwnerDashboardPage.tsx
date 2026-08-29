@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Card, CardTitle, EmptyState, MetricCard, Spinner } from '@/components/ui'
 import { PageHeader } from '@/components/ui/AppShell'
 import { useListPGsQuery } from '@/features/properties/propertiesApi'
-import { useAppSelector } from '@/hooks/redux'
 import { occupancyPercent } from '@/utils/format'
 
 /**
@@ -14,18 +13,20 @@ import { occupancyPercent } from '@/utils/format'
  * tile is indistinguishable from a real month with no payments, and the plan is
  * explicit that an honest placeholder beats a fake number. Phase 6 fills these
  * in once Phases 3-5 produce the data.
+ *
+ * Always the all-properties aggregate — there is no per-PG scoping here any
+ * more. Wanting one property's own numbers is what opening its workspace
+ * (Properties -> that PG -> Dashboard tab) is for; this page would only be
+ * duplicating that view under a confusing second toggle.
  */
 export default function OwnerDashboardPage() {
   const { data: pgs, isLoading } = useListPGsQuery()
-  const selectedPgId = useAppSelector((state) => state.selectedPg.selectedPgId)
 
   if (isLoading) return <Spinner label="Loading dashboard" />
 
   const allPGs = pgs ?? []
-  const scoped = selectedPgId ? allPGs.filter((pg) => pg.id === selectedPgId) : allPGs
-  const scopeLabel = selectedPgId ? (scoped[0]?.name ?? 'Selected PG') : 'All PGs'
 
-  const totals = scoped.reduce(
+  const totals = allPGs.reduce(
     (acc, pg) => ({
       beds: acc.beds + pg.total_beds,
       occupied: acc.occupied + pg.occupied_beds,
@@ -39,7 +40,7 @@ export default function OwnerDashboardPage() {
     <>
       <PageHeader
         title="Dashboard overview"
-        description={`Showing ${scopeLabel}. Use the switcher above to change scope.`}
+        description="Every property on this account, combined."
       />
 
       {allPGs.length === 0 ? (
@@ -50,7 +51,7 @@ export default function OwnerDashboardPage() {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <MetricCard label="Total properties" value={scoped.length} />
+            <MetricCard label="Total properties" value={allPGs.length} />
             <MetricCard label="Total beds" value={totals.beds} />
             <MetricCard
               label="Occupied beds"
@@ -66,7 +67,7 @@ export default function OwnerDashboardPage() {
             <Card>
               <CardTitle>Occupancy by property</CardTitle>
               <ul className="space-y-3">
-                {scoped.map((pg) => (
+                {allPGs.map((pg) => (
                   <li key={pg.id}>
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="font-medium text-slate-800">{pg.name}</span>

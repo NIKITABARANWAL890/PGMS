@@ -114,10 +114,24 @@ async def register_owner(
     return response.json()
 
 
-async def create_pg(client: AsyncClient, token: str, name: str, address: str) -> dict:
-    response = await client.post(
-        "/pgs", json={"name": name, "address": address}, headers=auth_headers(token)
-    )
+async def create_pg(client: AsyncClient, token: str, name: str, address: str, **overrides) -> dict:
+    """Create a PG with the fields the Owner UI guide marks required.
+
+    Callers pass name and address; everything else has a sane default so the
+    tests that only care about "a PG exists" stay readable. Override any of it
+    with keyword arguments.
+    """
+    body = {
+        "name": name,
+        "address": address,
+        "pg_type": "co_living",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "pincode": "560034",
+        "contact_phone": "9876543210",
+    }
+    body.update(overrides)
+    response = await client.post("/pgs", json=body, headers=auth_headers(token))
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -153,6 +167,10 @@ async def build_room_with_beds(
             "room_number": room_number,
             "room_type": "double",
             "total_beds": len(bed_labels),
+            "monthly_rent": "8000.00",
+            # This helper creates its beds explicitly below, so the room must
+            # not seed its own -- otherwise the two collide on capacity.
+            "generate_beds": False,
         },
         headers=headers,
     )

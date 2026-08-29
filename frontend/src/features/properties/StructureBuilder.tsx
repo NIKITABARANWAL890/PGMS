@@ -9,6 +9,7 @@ import {
   Select,
   TextInput,
 } from '@/components/ui'
+import type { RoomType } from '@/types/api'
 import { apiErrorMessage } from '@/utils/format'
 
 import {
@@ -51,8 +52,9 @@ export function StructureBuilder({ pgId }: { pgId: string }) {
   const [floorLabel, setFloorLabel] = useState('')
   const [roomFloorId, setRoomFloorId] = useState('')
   const [roomNumber, setRoomNumber] = useState('')
-  const [roomType, setRoomType] = useState('double')
+  const [roomType, setRoomType] = useState<RoomType>('double')
   const [roomBeds, setRoomBeds] = useState('2')
+  const [roomRent, setRoomRent] = useState('')
   const [bedRoomId, setBedRoomId] = useState('')
   const [bedLabel, setBedLabel] = useState('')
   const [bedRent, setBedRent] = useState('')
@@ -179,6 +181,10 @@ export function StructureBuilder({ pgId }: { pgId: string }) {
                 room_number: roomNumber.trim(),
                 room_type: roomType,
                 total_beds: Number(roomBeds) || 1,
+                monthly_rent: roomRent,
+                // Beds are added in step 4 here, so the room must not seed
+                // its own or the two would collide on capacity.
+                generate_beds: false,
               })
                 .unwrap()
                 .catch(() => undefined)
@@ -218,7 +224,7 @@ export function StructureBuilder({ pgId }: { pgId: string }) {
               <Field label="Type">
                 <Select
                   value={roomType}
-                  onChange={(event) => setRoomType(event.target.value)}
+                  onChange={(event) => setRoomType(event.target.value as RoomType)}
                 >
                   <option value="single">Single</option>
                   <option value="double">Double</option>
@@ -234,10 +240,18 @@ export function StructureBuilder({ pgId }: { pgId: string }) {
                 />
               </Field>
             </div>
+            <Field label="Room rent" hint="Per bed, in ₹. Beds inherit this.">
+              <TextInput
+                value={roomRent}
+                onChange={(event) => setRoomRent(event.target.value)}
+                inputMode="decimal"
+                placeholder="8000"
+              />
+            </Field>
             <Button
               type="submit"
               variant="secondary"
-              disabled={!roomFloorId || savingRoom}
+              disabled={!roomFloorId || !roomRent.trim() || savingRoom}
             >
               {savingRoom ? 'Adding…' : 'Add room'}
             </Button>
@@ -289,7 +303,7 @@ export function StructureBuilder({ pgId }: { pgId: string }) {
                 placeholder="Bed A"
               />
             </Field>
-            <Field label="Monthly rent" hint="Optional — per bed, in ₹.">
+            <Field label="Bed rent" hint="Optional — overrides the room rent.">
               <TextInput
                 value={bedRent}
                 onChange={(event) => setBedRent(event.target.value)}

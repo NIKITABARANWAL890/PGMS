@@ -8,6 +8,8 @@
 export type UserRole = 'owner' | 'staff' | 'tenant'
 export type BedStatus = 'occupied' | 'vacant' | 'maintenance'
 export type RoomType = 'single' | 'double' | 'triple' | 'sharing'
+/** Owner UI guide 3.1 — Girls / Boys / Co-living. */
+export type PGType = 'girls' | 'boys' | 'co_living'
 
 export interface TokenPair {
   access_token: string
@@ -30,6 +32,16 @@ export interface PG {
   id: string
   name: string
   address: string
+  /** Null on PGs created before these fields existed — the Details tab prompts. */
+  pg_type: PGType | null
+  city: string | null
+  state: string | null
+  pincode: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  pg_code: string | null
+  description: string | null
+  created_at: string
 }
 
 export interface PGSummary extends PG {
@@ -47,12 +59,17 @@ export interface Bed {
   monthly_rent: string | null
 }
 
-export interface RoomWithBeds {
+export interface Room {
   id: string
   floor_id: string
   room_number: string
   room_type: RoomType
   total_beds: number
+  monthly_rent: string | null
+  description: string | null
+}
+
+export interface RoomWithBeds extends Room {
   floor_label: string
   building_name: string
   beds: Bed[]
@@ -75,6 +92,15 @@ export interface Building {
   id: string
   pg_id: string
   name: string
+  building_code: string | null
+}
+
+/** Buildings & Floors tab (guide 7): a building with its roll-up. */
+export interface BuildingWithStructure extends Building {
+  floor_count: number
+  room_count: number
+  bed_count: number
+  occupied_beds: number
 }
 
 export interface Floor {
@@ -82,6 +108,14 @@ export interface Floor {
   building_id: string
   floor_label: string
   floor_order: number
+}
+
+/** Floors Overview (guide 3.4): a floor with zero rooms reads "Not Configured". */
+export interface FloorOverview extends Floor {
+  room_count: number
+  bed_count: number
+  occupied_beds: number
+  monthly_rent_total: string
 }
 
 export interface FloorWithBuilding extends Floor {

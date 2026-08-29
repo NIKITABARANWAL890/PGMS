@@ -14,11 +14,13 @@ function cx(...classes: (string | false | null | undefined)[]): string {
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-500 disabled:bg-brand-600/50',
+  primary:
+    'bg-brand-600 text-white shadow-sm hover:bg-brand-500 active:bg-brand-700 disabled:bg-brand-600/40 disabled:shadow-none',
   secondary:
-    'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50',
-  ghost: 'text-slate-600 hover:bg-slate-100 disabled:opacity-50',
-  danger: 'bg-red-600 text-white hover:bg-red-500 disabled:bg-red-600/50',
+    'bg-white text-slate-700 border border-slate-300 shadow-sm hover:border-slate-400 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50 disabled:shadow-none',
+  ghost: 'text-slate-600 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-50',
+  danger:
+    'bg-red-600 text-white shadow-sm hover:bg-red-500 active:bg-red-700 disabled:bg-red-600/40 disabled:shadow-none',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,9 +32,9 @@ export function Button({ variant = 'primary', className, ...props }: ButtonProps
     <button
       {...props}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium',
-        'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
-        'focus-visible:ring-offset-2 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium',
+        'transition-all duration-150 focus:outline-none focus-visible:ring-2',
+        'focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed',
         BUTTON_STYLES[variant],
         className,
       )}
@@ -52,7 +54,7 @@ export function Card({
   return (
     <div
       className={cx(
-        'rounded-xl border border-slate-200 bg-white p-5 shadow-sm',
+        'rounded-xl border border-slate-200/80 bg-white p-5 shadow-card',
         className,
       )}
     >
@@ -62,7 +64,7 @@ export function Card({
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-4 text-base font-semibold text-slate-900">{children}</h2>
+  return <h2 className="mb-4 text-base font-semibold tracking-tight text-slate-900">{children}</h2>
 }
 
 /** The dashboard metric tile from the wireframe: label, big number, sub-note. */
@@ -71,11 +73,13 @@ export function MetricCard({
   value,
   note,
   tone = 'default',
+  icon,
 }: {
   label: string
   value: ReactNode
   note?: ReactNode
   tone?: 'default' | 'positive' | 'warning' | 'muted'
+  icon?: ReactNode
 }) {
   const valueTone = {
     default: 'text-slate-900',
@@ -85,11 +89,16 @@ export function MetricCard({
   }[tone]
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-        {label}
+    <div className="group rounded-xl border border-slate-200/80 bg-white p-4 shadow-card transition-shadow duration-200 hover:shadow-card-hover">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+          {label}
+        </p>
+        {icon ? <span className="text-slate-300">{icon}</span> : null}
+      </div>
+      <p className={cx('tabular mt-2 text-2xl font-semibold tracking-tight', valueTone)}>
+        {value}
       </p>
-      <p className={cx('mt-2 text-2xl font-semibold', valueTone)}>{value}</p>
       {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
     </div>
   )
@@ -103,7 +112,7 @@ const BADGE_STYLES: Record<BadgeTone, string> = {
   green: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   amber: 'bg-amber-50 text-amber-700 ring-amber-600/20',
   red: 'bg-red-50 text-red-700 ring-red-600/20',
-  blue: 'bg-blue-50 text-blue-700 ring-blue-600/20',
+  blue: 'bg-brand-50 text-brand-700 ring-brand-600/20',
   slate: 'bg-slate-100 text-slate-600 ring-slate-500/20',
 }
 
@@ -111,7 +120,7 @@ export function Badge({ tone = 'slate', children }: { tone?: BadgeTone; children
   return (
     <span
       className={cx(
-        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset',
         BADGE_STYLES[tone],
       )}
     >
@@ -140,7 +149,14 @@ export function Field({ label, error, required, hint, children }: FieldProps) {
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-slate-700">
           {label}
-          {required ? <span className="text-red-500"> *</span> : null}
+          {/* Decorative: the asterisk is a visual convention, and letting it into
+              the accessible name makes every required field read "Name star". */}
+          {required ? (
+            <span aria-hidden className="text-red-500">
+              {}
+              *
+            </span>
+          ) : null}
         </span>
         {children}
       </label>
@@ -151,9 +167,10 @@ export function Field({ label, error, required, hint, children }: FieldProps) {
 }
 
 const CONTROL_CLASSES =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm ' +
-  'placeholder:text-slate-400 focus:border-brand-500 focus:outline-none ' +
-  'focus:ring-2 focus:ring-brand-500/30'
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm ' +
+  'transition-colors placeholder:text-slate-400 hover:border-slate-400 ' +
+  'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 ' +
+  'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500'
 
 export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(CONTROL_CLASSES, className)} />
@@ -188,11 +205,25 @@ export function ErrorNote({ children }: { children: ReactNode }) {
   )
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title,
+  hint,
+  action,
+}: {
+  title: string
+  hint?: string
+  action?: ReactNode
+}) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
       <p className="text-sm font-medium text-slate-700">{title}</p>
-      {hint ? <p className="mt-1 text-sm text-slate-500">{hint}</p> : null}
+      {hint ? <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{hint}</p> : null}
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   )
 }
+
+export { Drawer } from './Drawer'
+export { ConfirmDelete } from './ConfirmDelete'
+export { Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs'
+export * as Icon from './icons'

@@ -143,7 +143,7 @@ describe('StructureBuilder', () => {
 
     await user.selectOptions(roomSelect, 'r-1')
     await user.type(screen.getByLabelText('Bed label'), 'Bed B')
-    await user.type(screen.getByLabelText('Monthly rent'), '7500')
+    await user.type(screen.getByLabelText('Bed rent'), '7500')
     await user.click(screen.getByRole('button', { name: /add bed/i }))
 
     await waitFor(() => {

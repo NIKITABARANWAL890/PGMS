@@ -59,21 +59,44 @@ CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 -- Occupied, Vacant, Tenants). Rooms & Beds screen: Room No, Floor, Type,
 -- Total Beds, Occupied, Vacant.
 
+-- Owner UI guide 3.1: the PG Details step collects identity only. Every
+-- column below is one row of that table.
+-- Named pg_gender_type, not pg_type: PostgreSQL already has a system
+-- catalog type called pg_type, and shadowing it in `public` breaks tools
+-- that look enums up by bare name.
+CREATE TYPE pg_gender_type AS ENUM ('girls', 'boys', 'co_living');
+
 CREATE TABLE pgs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id        UUID NOT NULL REFERENCES users(id),
     name            VARCHAR(150) NOT NULL,           -- "Sunrise PG"
-    address         VARCHAR(255) NOT NULL,           -- "Koramangala, Bangalore"
+    address         VARCHAR(255) NOT NULL,           -- "24th Main, Koramangala"
+    -- Nullable for a reason: PGs created before these fields existed have no
+    -- honest value to backfill, and inventing one ("co_living" for every old
+    -- row) would look like data the owner entered. The API requires them on
+    -- create; the Details tab shows a blank and prompts to fill it in.
+    pg_type         pg_gender_type,                  -- Girls / Boys / Co-living
+    city            VARCHAR(100),                    -- "Bengaluru"
+    state           VARCHAR(100),                    -- "Karnataka"
+    pincode         VARCHAR(10),                     -- "560034"
+    contact_phone   VARCHAR(15),
+    contact_email   VARCHAR(255),
+    pg_code         VARCHAR(20),                     -- "SPG001", owner-facing identifier
+    description     TEXT,                            -- "Near metro, fully furnished"
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_pgs_owner ON pgs(owner_id);
 
+-- Guide 3.2: a Single-Building PG gets an automatic "Main Building"; a
+-- Multiple-Building PG has each one named by the owner. No description or
+-- status at building level -- the guide is explicit about that.
 CREATE TABLE buildings (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pg_id           UUID NOT NULL REFERENCES pgs(id) ON DELETE CASCADE,
     name            VARCHAR(100) NOT NULL DEFAULT 'Main Building',
+    building_code   VARCHAR(20),                     -- optional, e.g. "MB-01"
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -93,6 +116,11 @@ CREATE TABLE rooms (
     room_number     VARCHAR(20) NOT NULL,            -- "101", "102"
     room_type       room_type NOT NULL,
     total_beds      INT NOT NULL CHECK (total_beds > 0),
+    -- Guide 3.5 makes room rent required, and 3.6 has beds inherit it unless
+    -- a bed overrides. Nullable here only so rooms created before this column
+    -- existed remain valid; the API requires it on create.
+    monthly_rent    NUMERIC(10,2),
+    description     TEXT,                            -- "AC, attached bathroom"
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (floor_id, room_number)
 );

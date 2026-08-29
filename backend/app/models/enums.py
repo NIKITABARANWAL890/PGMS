@@ -18,6 +18,14 @@ class UserRole(str, enum.Enum):
     TENANT = "tenant"
 
 
+class PGType(str, enum.Enum):
+    """Owner UI guide 3.1 — Girls / Boys / Co-living."""
+
+    GIRLS = "girls"
+    BOYS = "boys"
+    CO_LIVING = "co_living"
+
+
 class RoomType(str, enum.Enum):
     SINGLE = "single"
     DOUBLE = "double"

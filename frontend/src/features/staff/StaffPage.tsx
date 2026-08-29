@@ -68,6 +68,7 @@ export default function StaffPage() {
     <>
       <PageHeader
         title="Staff"
+        breadcrumbs={[{ label: 'Dashboard', to: '/' }, { label: 'Staff' }]}
         description="Staff access is set per PG. Capability itself is the same for everyone."
         action={
           showForm ? null : <Button onClick={() => setShowForm(true)}>+ Add staff</Button>

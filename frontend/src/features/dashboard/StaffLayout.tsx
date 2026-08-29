@@ -2,19 +2,27 @@ import { Outlet } from 'react-router-dom'
 
 import { EmptyState, MetricCard, Spinner } from '@/components/ui'
 import { AppShell, PageHeader, type NavItem } from '@/components/ui/AppShell'
+import {
+  IconBed,
+  IconBell,
+  IconDashboard,
+  IconMessage,
+  IconSettings,
+  IconUsers,
+} from '@/components/ui/icons'
 import { useListMyAssignedPGsQuery } from '@/features/properties/propertiesApi'
 import { useAppSelector } from '@/hooks/redux'
 
 // A separate nav from the owner's, matching the Staff wireframe — staff get
 // their own app shell rather than the owner's with items hidden.
 const STAFF_NAV: NavItem[] = [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Rooms & Beds', to: '/rooms-and-beds' },
-  { label: 'Complaints', to: '/complaints', comingSoon: true },
-  { label: 'Maintenance Tasks', to: '/tasks', comingSoon: true },
-  { label: 'Tenants', to: '/tenants', comingSoon: true },
-  { label: 'Move-outs', to: '/moveouts', comingSoon: true },
-  { label: 'Notices', to: '/notices', comingSoon: true },
+  { label: 'Dashboard', to: '/', icon: <IconDashboard /> },
+  { label: 'Rooms & Beds', to: '/rooms-and-beds', icon: <IconBed /> },
+  { label: 'Complaints', to: '/complaints', icon: <IconMessage />, comingSoon: true },
+  { label: 'Maintenance Tasks', to: '/tasks', icon: <IconSettings />, comingSoon: true },
+  { label: 'Tenants', to: '/tenants', icon: <IconUsers />, comingSoon: true },
+  { label: 'Move-outs', to: '/moveouts', icon: <IconUsers />, comingSoon: true },
+  { label: 'Notices', to: '/notices', icon: <IconBell />, comingSoon: true },
 ]
 
 export default function StaffLayout() {

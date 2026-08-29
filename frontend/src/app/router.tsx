@@ -8,8 +8,16 @@ import RegisterPage from '@/features/auth/RegisterPage'
 import OwnerDashboardPage from '@/features/dashboard/OwnerDashboardPage'
 import OwnerLayout from '@/features/dashboard/OwnerLayout'
 import StaffLayout, { StaffDashboardPage } from '@/features/dashboard/StaffLayout'
-import PGDetailPage from '@/features/properties/PGDetailPage'
 import PropertiesPage from '@/features/properties/PropertiesPage'
+import PGSetupPage from '@/features/properties/setup/PGSetupPage'
+import PGBedsTab from '@/features/properties/workspace/PGBedsTab'
+import PGBuildingsTab from '@/features/properties/workspace/PGBuildingsTab'
+import FloorDetailPage from '@/features/properties/workspace/FloorDetailPage'
+import PGDashboardTab from '@/features/properties/workspace/PGDashboardTab'
+import PGDetailsTab from '@/features/properties/workspace/PGDetailsTab'
+import PGRoomsTab from '@/features/properties/workspace/PGRoomsTab'
+import PGStaffTab from '@/features/properties/workspace/PGStaffTab'
+import PGWorkspaceLayout from '@/features/properties/workspace/PGWorkspaceLayout'
 import RoomsAndBedsPage from '@/features/properties/RoomsAndBedsPage'
 import StaffPage from '@/features/staff/StaffPage'
 import { useAppSelector } from '@/hooks/redux'
@@ -65,7 +73,25 @@ export function AppRouter() {
       <Route element={<OwnerLayout />}>
         <Route index element={<OwnerDashboardPage />} />
         <Route path="/properties" element={<PropertiesPage />} />
-        <Route path="/properties/:pgId" element={<PGDetailPage />} />
+        <Route path="/properties/new" element={<PGSetupPage />} />
+        {/* The per-property workspace: one layout, the guide's sub-nav, and a
+            tab per section. Tabs read their PG from the layout's context. */}
+        <Route path="/properties/:pgId" element={<PGWorkspaceLayout />}>
+          <Route index element={<PGDashboardTab />} />
+          <Route path="details" element={<PGDetailsTab />} />
+          <Route path="buildings" element={<PGBuildingsTab />} />
+          <Route path="rooms" element={<PGRoomsTab />} />
+          <Route path="beds" element={<PGBedsTab />} />
+          <Route path="staff" element={<PGStaffTab />} />
+        </Route>
+        {/* One floor, with its rooms and beds inline. A sibling of the
+            workspace route rather than nested under it: PGWorkspaceLayout
+            renders its own PG title + breadcrumb, and this page needs its own
+            deeper one ("... / Rooms / Floor 2") -- nesting the two would stack
+            both headers on screen at once. OwnerLayout's WorkspaceSidebar still
+            shows here, since it matches on the URL directly, not on which
+            route element handled it. */}
+        <Route path="/properties/:pgId/floors/:floorId" element={<FloorDetailPage />} />
         <Route path="/rooms-and-beds" element={<RoomsAndBedsPage canManage />} />
         <Route path="/staff" element={<StaffPage />} />
         <Route path="/profile" element={<ProfilePage />} />

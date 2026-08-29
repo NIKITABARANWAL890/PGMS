@@ -91,10 +91,10 @@ export function AuthLayout({
     <div className="flex min-h-full items-center justify-center bg-slate-100 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-navy-900 text-lg font-bold text-white">
+          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br from-brand-600 to-violet-600 text-lg font-bold text-white shadow-sm">
             PG
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-navy-900">{title}</h1>
           <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
         </div>
 

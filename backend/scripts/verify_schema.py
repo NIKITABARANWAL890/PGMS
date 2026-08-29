@@ -40,7 +40,7 @@ PHASE1_TABLES = [
     "beds",
     "staff_assignments",
 ]
-PHASE1_ENUMS = ["user_role", "room_type", "bed_status"]
+PHASE1_ENUMS = ["user_role", "room_type", "bed_status", "pg_gender_type"]
 
 REFERENCE_DB = "phase1_schema_reference"
 

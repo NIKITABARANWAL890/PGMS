@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
+    Text,
     Enum as SAEnum,
     ForeignKey,
     Index,
@@ -26,7 +27,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, created_at_col, updated_at_col, uuid_pk
-from app.models.enums import BedStatus, RoomType, enum_values
+from app.models.enums import BedStatus, PGType, RoomType, enum_values
 
 if TYPE_CHECKING:
     from app.models.staff_assignment import StaffAssignment
@@ -43,6 +44,19 @@ class PG(Base):
     )
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     address: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Nullable in the database, required by the API on create. PGs that predate
+    # these columns have no honest value to backfill -- inventing one would be
+    # indistinguishable from something the owner actually entered.
+    pg_type: Mapped[PGType | None] = mapped_column(
+        SAEnum(PGType, name="pg_gender_type", values_callable=enum_values)
+    )
+    city: Mapped[str | None] = mapped_column(String(100))
+    state: Mapped[str | None] = mapped_column(String(100))
+    pincode: Mapped[str | None] = mapped_column(String(10))
+    contact_phone: Mapped[str | None] = mapped_column(String(15))
+    contact_email: Mapped[str | None] = mapped_column(String(255))
+    pg_code: Mapped[str | None] = mapped_column(String(20))
+    description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
 
@@ -65,6 +79,7 @@ class Building(Base):
     name: Mapped[str] = mapped_column(
         String(100), nullable=False, server_default="Main Building"
     )
+    building_code: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = created_at_col()
 
     pg: Mapped["PG"] = relationship(back_populates="buildings")
@@ -110,6 +125,9 @@ class Room(Base):
         SAEnum(RoomType, name="room_type", values_callable=enum_values), nullable=False
     )
     total_beds: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Guide 3.6: a bed inherits this unless it carries its own rent.
+    monthly_rent: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = created_at_col()
 
     floor: Mapped["Floor"] = relationship(back_populates="rooms")
