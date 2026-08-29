@@ -10,7 +10,7 @@ asyncpg==0.31.0          # async driver, used by the app
 psycopg[binary]==3.3.4   # sync driver, used by Alembic and the dev scripts
 pydantic==2.13.4
 pydantic-settings==2.15.0
-email-validator==2.4.1
+email-validator==2.3.0
 
 # --- Auth --------------------------------------------------------------
 python-jose[cryptography]==3.5.0
@@ -25,7 +25,7 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 httpx==0.28.1
 
-# --- Local development only --------------------------------------------
-# Ships real PostgreSQL binaries so `scripts/devdb.py` can run a local
-# database without Docker. Not needed in deployment.
-pgserver==0.1.4
+# Local-only extras (scripts/devdb.py's bundled Postgres) live in
+# requirements-dev.txt, not here — pulling in an embedded database server on
+# every production build wastes real deploy-time minutes for something a
+# deployed instance never uses.

@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,25 @@ class Settings(BaseSettings):
     # Async driver for the app, sync driver for Alembic (Alembic runs its
     # migrations synchronously here to keep env.py simple to read).
     database_url: str = "postgresql+asyncpg://pgms:pgms@localhost:5432/pgms"
+
+    @field_validator("database_url")
+    @classmethod
+    def use_asyncpg_driver(cls, value: str) -> str:
+        """Accept the plain connection string every managed Postgres hands out.
+
+        Render, Railway, and friends all give you `postgresql://...` (or the
+        older `postgres://` alias) — never the SQLAlchemy-specific
+        `postgresql+asyncpg://`. Pasting their string in as-is is the natural
+        thing to do, so normalize it here instead of documenting yet another
+        manual edit step that's easy to forget under deploy-day pressure.
+        """
+        if value.startswith("postgresql+asyncpg://"):
+            return value
+        if value.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + value[len("postgresql://") :]
+        if value.startswith("postgres://"):
+            return "postgresql+asyncpg://" + value[len("postgres://") :]
+        return value
 
     # --- Auth ---------------------------------------------------------
     # Override in .env for anything other than local development.

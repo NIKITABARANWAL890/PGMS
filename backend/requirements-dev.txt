@@ -1,0 +1,9 @@
+# Local development only — never installed in a deployment.
+#
+#   pip install -r requirements-dev.txt
+#
+-r requirements.txt
+
+# Ships real PostgreSQL binaries so scripts/devdb.py can run a local database
+# without Docker.
+pgserver==0.1.4

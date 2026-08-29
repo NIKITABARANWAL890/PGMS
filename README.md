@@ -170,6 +170,65 @@ It exits non-zero on any difference.
 
 ---
 
+## Deploying it
+
+Matches Section 8 of `Product_plan.md`: frontend on Vercel, backend + database
+on Render. Both have a free tier, which is the point for a resume link.
+
+### 1. Backend + database — Render
+
+A `render.yaml` at the repo root describes both pieces, so Render builds them
+from one click instead of two separate dashboard setups:
+
+1. Push this repo to GitHub if it isn't already there.
+2. [render.com](https://render.com) → sign in with GitHub → **New** → **Blueprint**.
+3. Pick this repo. Render reads `render.yaml` and shows two resources: the
+   `pgms-api` web service and the `pgms-db` Postgres database.
+4. **Apply.** Render builds the API, generates a real `JWT_SECRET_KEY` for
+   you, wires the database's connection string in automatically, and runs
+   `alembic upgrade head` before every start — a brand-new database ends up
+   fully migrated with no manual step.
+5. Once it's live, copy the API's URL (`https://pgms-api-xxxx.onrender.com`).
+
+`render.yaml` points at the `feature_login` branch, since that's where this
+work actually lives. Switch it to `main` in the Render dashboard (**Settings
+→ Build & Deploy → Branch**) once that branch is merged — no redeploy of the
+blueprint file itself needed.
+
+**Free tier note:** the API sleeps after ~15 minutes with no traffic. The
+first request after that takes about 50 seconds to wake it back up; every
+request after is normal speed. Fine for a resume link — not something to
+paper over with a workaround.
+
+### 2. Frontend — Vercel
+
+1. [vercel.com](https://vercel.com) → sign in with GitHub → **Add New… → Project**.
+2. Pick this repo. Set **Root Directory** to `frontend` — Vercel then
+   auto-detects the Vite framework preset; build command and output directory
+   need no changes.
+3. Add one environment variable: `VITE_API_URL` = the Render API URL from
+   step 1 (no trailing slash).
+4. **Deploy.** `frontend/vercel.json` is already in place so refreshing on a
+   nested route like `/properties/abc123` doesn't 404 — every path serves
+   `index.html` and React Router takes it from there.
+
+### 3. Connect the two
+
+The API's `CORS_ORIGINS` still points at the placeholder from `render.yaml`.
+Back in Render, open `pgms-api` → **Environment**, set `CORS_ORIGINS` to the
+real Vercel URL (`https://your-app.vercel.app`, no trailing slash), and save
+— that triggers a redeploy. Until this step, the browser blocks every request
+from the deployed frontend with a CORS error, even though both halves are
+individually live.
+
+### 4. Try it
+
+Open the Vercel URL, register an owner account, and run through the flow in
+[First run](#5-first-run) above. The very first request will be the slow one
+if the API had gone to sleep — that's expected, not broken.
+
+---
+
 ## Project layout
 
 ```text

@@ -1,0 +1,44 @@
+# Render "Blueprint" — reads this file to provision the API and its database
+# together in one step, instead of clicking through two separate dashboards.
+#
+# Deploy: render.com -> New -> Blueprint -> pick this GitHub repo -> Apply.
+# Render finds this file automatically because it lives at the repo root.
+#
+# Deliberately points at `feature_login` for now, matching the branch this
+# work actually lives on — switch it to `main` in the Render dashboard
+# (Settings -> Build & Deploy) once that branch is merged, no redeploy of
+# this file required.
+services:
+  - type: web
+    name: pgms-api
+    runtime: python
+    plan: free
+    region: singapore
+    branch: feature_login
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Migrations run on every deploy, before the server starts, so a fresh
+    # database (or one that's behind) is always brought up to date first —
+    # the same ordering `README.md` describes for local setup.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pgms-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        # Update after the frontend is deployed to Vercel — it needs the
+        # real https://your-app.vercel.app origin, not this placeholder, or
+        # the browser will block every request with a CORS error.
+        value: https://REPLACE-WITH-YOUR-VERCEL-URL.vercel.app
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+databases:
+  - name: pgms-db
+    plan: free
+    databaseName: pgms
+    user: pgms
